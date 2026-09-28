@@ -97,6 +97,15 @@ interface TransactionDao {
     @Query("SELECT * FROM transaction_items")
     fun getAllTransactionItems(): Flow<List<TransactionItemEntity>>
 
+    @Query("SELECT * FROM transactions")
+    suspend fun getAllTransactionsSync(): List<TransactionEntity>
+
+    @Update
+    suspend fun updateTransaction(tx: TransactionEntity)
+
+    @Update
+    suspend fun updateTransactionItems(items: List<TransactionItemEntity>)
+
     @Query("DELETE FROM transactions")
     suspend fun clearTransactions()
 

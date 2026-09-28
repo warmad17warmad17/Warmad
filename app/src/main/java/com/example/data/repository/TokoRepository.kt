@@ -88,6 +88,43 @@ class TokoRepository(
         return txId
     }
 
+    suspend fun syncTransactionsHpp(): Int {
+        val allTx = transactionDao.getAllTransactionsSync()
+        val allProducts = productDao.getAllProducts().firstOrNull() ?: emptyList()
+        val productMap = allProducts.associateBy { it.id }
+        var syncedCount = 0
+
+        for (tx in allTx) {
+            val items = transactionDao.getItemsForTransactionSync(tx.id)
+            var updatedItems = false
+
+            val updatedItemList = items.map { item ->
+                var unitCost = item.unitCost
+                if (unitCost <= 0.0) {
+                    val prod = productMap[item.productId] ?: allProducts.firstOrNull { 
+                        it.qrCode.equals(item.qrCode, ignoreCase = true) || it.name.equals(item.productName, ignoreCase = true) 
+                    }
+                    if (prod != null && prod.hargaBeli > 0.0) {
+                        unitCost = prod.hargaBeli
+                        updatedItems = true
+                    }
+                }
+                item.copy(unitCost = unitCost)
+            }
+
+            if (updatedItems) {
+                transactionDao.updateTransactionItems(updatedItemList)
+            }
+
+            val totalCostFromItems = updatedItemList.sumOf { it.quantity * it.unitCost }
+            if (totalCostFromItems > 0.0 && (tx.totalCost <= 0.0 || tx.totalCost != totalCostFromItems)) {
+                transactionDao.updateTransaction(tx.copy(totalCost = totalCostFromItems))
+                syncedCount++
+            }
+        }
+        return syncedCount
+    }
+
     // Expenses
     val allExpenses: Flow<List<ExpenseEntity>> = expenseDao.getAllExpenses()
 

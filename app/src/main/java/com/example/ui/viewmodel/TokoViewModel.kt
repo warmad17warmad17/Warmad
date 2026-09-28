@@ -65,6 +65,11 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             db.expenseDao(),
             db.storeSettingsDao()
         )
+
+        // Automatically sync HPP for any existing transactions on startup
+        viewModelScope.launch {
+            repository.syncTransactionsHpp()
+        }
     }
 
     // Settings
@@ -118,13 +123,13 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     private val _cart = MutableStateFlow<List<CartItem>>(emptyList())
     val cart: StateFlow<List<CartItem>> = _cart.asStateFlow()
 
-    val cartTotal: StateFlow<Double> = _cart.combine(_cart) { cartList, _ ->
+    val cartTotal: StateFlow<Double> = _cart.map { cartList ->
         cartList.sumOf { it.subtotal }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0.0)
 
-    val cartTotalCost: StateFlow<Double> = _cart.combine(_cart) { cartList, _ ->
+    val cartTotalCost: StateFlow<Double> = _cart.map { cartList ->
         cartList.sumOf { it.subtotalCost }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0.0)
 
     // Fast QR Input
     private val _qrInputText = MutableStateFlow("")
@@ -291,8 +296,8 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val total = cartTotal.value
-        val totalCost = cartTotalCost.value
+        val total = cartList.sumOf { it.subtotal }
+        val totalCost = cartList.sumOf { it.subtotalCost }
         val isNonTunai = _paymentType.value == "NON_TUNAI"
 
         val paid = if (isNonTunai) {
@@ -537,6 +542,17 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         }
         expenses.filter { it.timestamp >= startTime }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun syncHppManually() {
+        viewModelScope.launch {
+            val count = repository.syncTransactionsHpp()
+            if (count > 0) {
+                emitMessage("Berhasil menyinkronkan HPP untuk $count transaksi!")
+            } else {
+                emitMessage("HPP semua transaksi sudah sinkron dengan harga beli produk")
+            }
+        }
+    }
 
     // -------------------------------------------------------------
     // STORE & RECEIPT SETTINGS

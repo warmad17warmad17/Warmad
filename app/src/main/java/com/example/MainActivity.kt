@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.PointOfSale
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,7 +55,7 @@ enum class MainNavDestination(
 ) {
     KASIR("Kasir", Icons.Default.PointOfSale, "nav_kasir"),
     PRODUK("Produk", Icons.Default.Inventory, "nav_produk"),
-    RIWAYAT("Riwayat", Icons.Default.ReceiptLong, "nav_riwayat"),
+    RIWAYAT("Riwayat", Icons.AutoMirrored.Filled.ReceiptLong, "nav_riwayat"),
     LAPORAN("Laporan", Icons.Default.Assessment, "nav_laporan"),
     MODAL("Modal", Icons.Default.AccountBalanceWallet, "nav_modal"),
     PENGATURAN("Pengaturan", Icons.Default.Settings, "nav_pengaturan")

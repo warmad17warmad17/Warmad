@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,14 +24,18 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -85,17 +90,40 @@ fun FinancialReportScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Laporan Keuangan Toko",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Analisis pendapatan kotor, bersih, serta laporan khusus kas tunai & non-tunai",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Laporan Keuangan Toko",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Analisis omzet, HPP modal produk, laba bersih, & rekonsiliasi kas",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { viewModel.syncHppManually() },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("sync_hpp_button")
+                    ) {
+                        Icon(
+                            Icons.Default.Sync,
+                            contentDescription = "Sinkronkan HPP",
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Sinkron HPP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -133,7 +161,7 @@ fun FinancialReportScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Main Revenue & Profit Summary Cards
+            // Main Revenue & Profit Summary Cards (Row 1: Omzet & HPP)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -175,7 +203,90 @@ fun FinancialReportScreen(
                     }
                 }
 
-                // Pendapatan Bersih Card
+                // Modal Pokok Terjual (HPP) Card
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Inventory,
+                                contentDescription = null,
+                                tint = Color(0xFFB45309),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Modal Terjual (HPP)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = CurrencyFormatter.formatRupiah(totalHpp),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF92400E)
+                        )
+                        Text(
+                            text = "Total Harga Beli Produk",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF92400E).copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+
+            // Summary Cards (Row 2: Laba Kotor & Laba Bersih)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Laba Kotor Card (Omzet - HPP)
+                val isLabaKotorPositive = labaKotor >= 0
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isLabaKotorPositive) Color(0xFFE0F2FE) else Color(0xFFFEE2E2)
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.TrendingUp,
+                                contentDescription = null,
+                                tint = if (isLabaKotorPositive) Color(0xFF0369A1) else Color(0xFF991B1B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Laba Kotor",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isLabaKotorPositive) Color(0xFF0369A1) else Color(0xFF991B1B)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = CurrencyFormatter.formatRupiah(labaKotor),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isLabaKotorPositive) Color(0xFF0369A1) else Color(0xFF991B1B)
+                        )
+                        Text(
+                            text = "Omzet - Modal HPP",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isLabaKotorPositive) Color(0xFF0369A1).copy(alpha = 0.8f) else Color(0xFF991B1B).copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                // Pendapatan Bersih Card (Laba Kotor - Biaya Operasional)
                 val isProfitPositive = pendapatanBersih >= 0
                 Card(
                     modifier = Modifier.weight(1f),
@@ -208,7 +319,7 @@ fun FinancialReportScreen(
                             color = if (isProfitPositive) Color(0xFF166534) else Color(0xFF991B1B)
                         )
                         Text(
-                            text = "Laba Bersih Toko",
+                            text = "Laba Bersih Akhir",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isProfitPositive) Color(0xFF166534).copy(alpha = 0.8f) else Color(0xFF991B1B).copy(alpha = 0.8f)
                         )
@@ -232,9 +343,21 @@ fun FinancialReportScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     ReportDetailRow("1. Total Penjualan (Omzet Kotor)", CurrencyFormatter.formatRupiah(pendapatanKotor), isPositive = true)
-                    ReportDetailRow("2. Modal Pokok Barang Terjual (HPP)", "- ${CurrencyFormatter.formatRupiah(totalHpp)}", isNegative = true)
+                    ReportDetailRow("2. Modal Pokok Produk Terjual (HPP)", "- ${CurrencyFormatter.formatRupiah(totalHpp)}", isNegative = true)
+                    Text(
+                        text = "* Sinkron otomatis dari harga beli produk terjual",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 4.dp)
+                    )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    ReportDetailRow("Laba Kotor Penjualan", CurrencyFormatter.formatRupiah(labaKotor), isBold = true)
+                    ReportDetailRow(
+                        label = "Laba Kotor Penjualan (Omzet - HPP)",
+                        value = CurrencyFormatter.formatRupiah(labaKotor),
+                        isBold = true,
+                        valueColor = if (labaKotor >= 0) Color(0xFF16A34A) else Color(0xFFDC2626)
+                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
                     ReportDetailRow("3. Biaya Pengeluaran Operasional", "- ${CurrencyFormatter.formatRupiah(totalPengeluaran)}", isNegative = true)
