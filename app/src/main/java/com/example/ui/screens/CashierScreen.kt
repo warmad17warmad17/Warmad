@@ -346,19 +346,19 @@ fun CashierScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Total Belanja:",
+                                    text = "Total Belanja",
                                     style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = CurrencyFormatter.formatRupiah(cartTotal),
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -855,7 +855,7 @@ private fun CheckoutSheetContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "TOTAL TAGIHAN",
+                    text = "TOTAL BELANJA",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
