@@ -108,7 +108,6 @@ fun SettingsBackupScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .imePadding()
     ) {
         // Top Header
         Surface(

@@ -6,8 +6,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
@@ -88,45 +91,52 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                @OptIn(ExperimentalLayoutApi::class)
+                val isImeVisible = WindowInsets.isImeVisible
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets.safeDrawing,
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
-                        ) {
-                            MainNavDestination.values().forEach { destination ->
-                                val selected = currentDestination == destination
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = { currentDestination = destination },
-                                    icon = {
-                                        Icon(
-                                            destination.icon,
-                                            contentDescription = destination.title
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = destination.title,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                                    ),
-                                    modifier = Modifier.testTag(destination.testTag)
-                                )
+                        if (!isImeVisible) {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 8.dp
+                            ) {
+                                MainNavDestination.values().forEach { destination ->
+                                    val selected = currentDestination == destination
+                                    NavigationBarItem(
+                                        selected = selected,
+                                        onClick = { currentDestination = destination },
+                                        icon = {
+                                            Icon(
+                                                destination.icon,
+                                                contentDescription = destination.title
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = destination.title,
+                                                fontSize = 10.sp,
+                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                        ),
+                                        modifier = Modifier.testTag(destination.testTag)
+                                    )
+                                }
                             }
                         }
                     }
                 ) { innerPadding ->
-                    val screenModifier = Modifier.padding(innerPadding)
+                    val screenModifier = Modifier
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
                     when (currentDestination) {
                         MainNavDestination.KASIR -> CashierScreen(viewModel = viewModel, modifier = screenModifier)
                         MainNavDestination.PRODUK -> ProductsScreen(viewModel = viewModel, modifier = screenModifier)

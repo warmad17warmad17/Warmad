@@ -87,9 +87,7 @@ fun CapitalExpenseScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
+            modifier = Modifier.fillMaxSize()
         ) {
             // Header
             Surface(
