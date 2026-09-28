@@ -18,6 +18,10 @@ import com.example.util.BackupData
 import com.example.util.BackupManager
 import com.example.util.CurrencyFormatter
 import com.example.util.DateFormatter
+import com.example.util.NotificationHelper
+import com.example.util.NotificationPreferences
+import com.example.util.NotificationSoundItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -55,6 +60,19 @@ enum class PeriodFilter(val label: String) {
 class TokoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: TokoRepository
+    val notificationPrefs = NotificationPreferences(application)
+
+    private val _isNotificationEnabled = MutableStateFlow(notificationPrefs.isNotificationEnabled)
+    val isNotificationEnabled: StateFlow<Boolean> = _isNotificationEnabled.asStateFlow()
+
+    private val _selectedNotificationSoundTitle = MutableStateFlow(notificationPrefs.soundTitle)
+    val selectedNotificationSoundTitle: StateFlow<String> = _selectedNotificationSoundTitle.asStateFlow()
+
+    private val _selectedNotificationSoundUri = MutableStateFlow(notificationPrefs.soundUri)
+    val selectedNotificationSoundUri: StateFlow<String> = _selectedNotificationSoundUri.asStateFlow()
+
+    private val _availableNotificationSounds = MutableStateFlow<List<NotificationSoundItem>>(emptyList())
+    val availableNotificationSounds: StateFlow<List<NotificationSoundItem>> = _availableNotificationSounds.asStateFlow()
 
     init {
         val db = AppDatabase.getDatabase(application, viewModelScope)
@@ -69,6 +87,12 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         // Automatically sync HPP for any existing transactions on startup
         viewModelScope.launch {
             repository.syncTransactionsHpp()
+        }
+
+        // Muat daftar suara notifikasi internal ponsel
+        viewModelScope.launch(Dispatchers.IO) {
+            val sounds = NotificationHelper.getDeviceNotificationSounds(application)
+            _availableNotificationSounds.value = sounds
         }
     }
 
@@ -351,6 +375,9 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             _currentReceiptItems.value = txItems.map { it.copy(transactionId = txId) }
             _showReceiptDialog.value = true
 
+            // Periksa stok terbaru setelah transaksi berhasil dikurangi
+            checkAndNotifyLowStock(force = true)
+
             emitMessage("Transaksi berhasil disimpan!")
         }
     }
@@ -377,6 +404,10 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleLowStockFilter() {
         _lowStockFilterActive.value = !_lowStockFilterActive.value
+    }
+
+    fun setLowStockFilter(active: Boolean) {
+        _lowStockFilterActive.value = active
     }
 
     // Filtered Products
@@ -408,6 +439,17 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         prods.count { it.stok <= it.minimumStokAlert }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    init {
+        // Pantau perubahan data stok produk terbaru dan beri notifikasi jika ada stok menipis
+        viewModelScope.launch {
+            allProducts.collectLatest { products ->
+                if (products.isNotEmpty()) {
+                    checkAndNotifyLowStock(products = products, force = false)
+                }
+            }
+        }
+    }
+
     fun addProduct(
         name: String,
         categoryId: Long,
@@ -431,6 +473,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.addProduct(product)
             emitMessage("Produk '${product.name}' berhasil ditambahkan")
+            checkAndNotifyLowStock(force = true)
         }
     }
 
@@ -438,6 +481,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.updateProduct(product)
             emitMessage("Produk '${product.name}' berhasil diperbarui")
+            checkAndNotifyLowStock(force = true)
         }
     }
 
@@ -675,6 +719,111 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
                 emitMessage("Gagal memulihkan data: Format file tidak sesuai!")
             }
         }
+    }
+
+    // -------------------------------------------------------------
+    // NOTIFIKASI SUARA STOK MENIPIS & PENYIMPANAN INTERNAL SUARA
+    // -------------------------------------------------------------
+    fun setNotificationEnabled(enabled: Boolean) {
+        notificationPrefs.isNotificationEnabled = enabled
+        _isNotificationEnabled.value = enabled
+        if (!enabled) {
+            NotificationHelper.cancelLowStockNotification(getApplication())
+            emitMessage("Notifikasi stok menipis dinonaktifkan")
+        } else {
+            notificationPrefs.resetSignature()
+            checkAndNotifyLowStock(force = true)
+            emitMessage("Notifikasi stok menipis diaktifkan")
+        }
+    }
+
+    fun setSelectedNotificationSound(title: String, uriString: String) {
+        notificationPrefs.soundTitle = title
+        notificationPrefs.soundUri = uriString
+        _selectedNotificationSoundTitle.value = title
+        _selectedNotificationSoundUri.value = uriString
+        notificationPrefs.resetSignature()
+        emitMessage("Suara notifikasi dipilih: $title")
+    }
+
+    fun refreshDeviceNotificationSounds() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val sounds = NotificationHelper.getDeviceNotificationSounds(getApplication())
+            _availableNotificationSounds.value = sounds
+        }
+    }
+
+    fun playPreviewSound(uriString: String) {
+        NotificationHelper.playPreviewSound(getApplication(), uriString)
+    }
+
+    fun stopPreviewSound() {
+        NotificationHelper.stopPreviewSound()
+    }
+
+    fun triggerManualLowStockCheck() {
+        checkAndNotifyLowStock(force = true)
+        val lowStockItems = allProducts.value.filter { it.stok <= it.minimumStokAlert }
+        if (lowStockItems.isNotEmpty()) {
+            emitMessage("Notifikasi suara dikirim untuk ${lowStockItems.size} produk dengan stok menipis")
+        } else {
+            emitMessage("Semua produk masih memiliki stok aman!")
+        }
+    }
+
+    fun checkAndNotifyLowStock(products: List<ProductEntity> = allProducts.value, force: Boolean = false) {
+        if (!notificationPrefs.isNotificationEnabled) return
+
+        val lowStockItems = products.filter { it.stok <= it.minimumStokAlert }
+        if (lowStockItems.isEmpty()) {
+            NotificationHelper.cancelLowStockNotification(getApplication())
+            return
+        }
+
+        // Tanda tangan unik berdasarkan ID dan sisa stok untuk menghindari spam berulang tanpa perubahan
+        val currentSignature = lowStockItems.sortedBy { it.id }.joinToString(";") { "${it.id}:${it.stok}" }
+        if (!force && currentSignature == notificationPrefs.lastNotifiedSignature) {
+            return
+        }
+
+        notificationPrefs.lastNotifiedSignature = currentSignature
+        NotificationHelper.showLowStockNotification(
+            context = getApplication(),
+            lowStockProducts = lowStockItems,
+            soundUriString = notificationPrefs.soundUri
+        )
+    }
+
+    fun testSoundNotification() {
+        val currentLowStock = allProducts.value.filter { it.stok <= it.minimumStokAlert }
+        val testItems = if (currentLowStock.isNotEmpty()) {
+            currentLowStock
+        } else {
+            listOf(
+                ProductEntity(
+                    name = "Contoh Produk Menipis",
+                    categoryId = 1,
+                    categoryName = "Sembako",
+                    qrCode = "0000",
+                    hargaBeli = 10000.0,
+                    hargaJual = 12000.0,
+                    stok = 2,
+                    minimumStokAlert = 5
+                )
+            )
+        }
+
+        NotificationHelper.showLowStockNotification(
+            context = getApplication(),
+            lowStockProducts = testItems,
+            soundUriString = notificationPrefs.soundUri
+        )
+        emitMessage("🔔 Notifikasi suara berhasil dikirim!")
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        NotificationHelper.stopPreviewSound()
     }
 
     private fun emitMessage(msg: String) {

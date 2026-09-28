@@ -1,10 +1,16 @@
 package com.example
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.ui.screens.CapitalExpenseScreen
 import com.example.ui.screens.CashierScreen
 import com.example.ui.screens.FinancialReportScreen
@@ -76,6 +83,37 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val snackbarHostState = remember { SnackbarHostState() }
                 var currentDestination by remember { mutableStateOf(MainNavDestination.KASIR) }
+
+                // Permintaan izin notifikasi runtime untuk Android 13+ (API 33+)
+                val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                    if (isGranted) {
+                        viewModel.setNotificationEnabled(true)
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted = ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (!isGranted) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                }
+
+                // Periksa apakah aplikasi dibuka dari klik notifikasi stok menipis
+                LaunchedEffect(intent) {
+                    if (intent?.getStringExtra("navigate_to") == "PRODUK") {
+                        currentDestination = MainNavDestination.PRODUK
+                        if (intent.getBooleanExtra("filter_low_stock", false)) {
+                            viewModel.setLowStockFilter(true)
+                        }
+                    }
+                }
 
                 // Listen for messages from ViewModel
                 LaunchedEffect(Unit) {
@@ -147,6 +185,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getStringExtra("navigate_to") == "PRODUK") {
+            viewModel.setLowStockFilter(intent.getBooleanExtra("filter_low_stock", false))
         }
     }
 }
