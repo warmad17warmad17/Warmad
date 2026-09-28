@@ -1,0 +1,6 @@
+{
+  "name": "Toko Makmur",
+  "description": "Aplikasi Kasir dan Manajemen Inventaris Toko Makmur Surabaya",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
