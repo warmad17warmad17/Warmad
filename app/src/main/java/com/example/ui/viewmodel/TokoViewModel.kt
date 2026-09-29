@@ -269,27 +269,31 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         if (type == "NON_TUNAI") {
             // Non tunai is exactly equal to the total bill
             val total = cartTotal.value
-            _paidAmountText.value = total.toLong().toString()
+            _paidAmountText.value = CurrencyFormatter.formatThousand(total.toLong())
         }
     }
 
     fun updatePaidAmountText(text: String) {
-        _paidAmountText.value = text.filter { it.isDigit() }
+        _paidAmountText.value = CurrencyFormatter.formatInputNominal(text, _paidAmountText.value)
     }
 
     /**
      * Fast nominal buttons:
-     * Clicking 10 sets 10000, 20 sets 20000, 30 sets 30000, 50 sets 50000, 100 sets 100000
+     * Clicking 10 sets 10.000, 20 sets 20.000, 30 sets 30.000, 50 sets 50.000, 100 sets 100.000
      * As specified: "Uang Pas 10 20 30 50 100 dimana nominal tersebut ketika di klik akan di tambahkan 000"
      */
     fun onQuickNominalClick(nominalCode: String) {
         if (nominalCode.equals("PAS", ignoreCase = true)) {
             val total = cartTotal.value
-            _paidAmountText.value = total.toLong().toString()
+            _paidAmountText.value = CurrencyFormatter.formatThousand(total.toLong())
         } else {
-            // e.g. "10" -> "10000", "20" -> "20000", etc.
-            val amountWithThousands = "${nominalCode}000"
-            _paidAmountText.value = amountWithThousands
+            // e.g. "10" -> "10.000", "20" -> "20.000", etc.
+            val digits = nominalCode.filter { it.isDigit() }
+            if (digits.isNotEmpty()) {
+                val fullAmount = "${digits}000"
+                val num = fullAmount.toLongOrNull() ?: 0L
+                _paidAmountText.value = CurrencyFormatter.formatThousand(num)
+            }
         }
     }
 

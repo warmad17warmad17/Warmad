@@ -472,7 +472,11 @@ private fun EditCapitalDialog(
     onSave: (Double) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var capitalText by remember { mutableStateOf(currentCapital.toLong().toString()) }
+    var capitalText by remember {
+        mutableStateOf(
+            if (currentCapital > 0) CurrencyFormatter.formatThousand(currentCapital.toLong()) else ""
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -502,8 +506,9 @@ private fun EditCapitalDialog(
 
                 OutlinedTextField(
                     value = capitalText,
-                    onValueChange = { capitalText = it.filter { ch -> ch.isDigit() } },
+                    onValueChange = { capitalText = CurrencyFormatter.formatInputNominal(it, capitalText) },
                     label = { Text("Modal Kas Toko (Rp)") },
+                    placeholder = { Text("Contoh: 500.000") },
                     prefix = { Text("Rp ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().testTag("capital_input_field"),
@@ -522,7 +527,7 @@ private fun EditCapitalDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val amount = capitalText.toDoubleOrNull() ?: 0.0
+                            val amount = CurrencyFormatter.parseAmount(capitalText)
                             onSave(amount)
                         },
                         modifier = Modifier.testTag("save_capital_btn")
@@ -543,7 +548,11 @@ private fun AddEditExpenseDialog(
 ) {
     var title by remember { mutableStateOf(expense?.title ?: "") }
     var category by remember { mutableStateOf(expense?.category ?: "Operasional") }
-    var amountText by remember { mutableStateOf(expense?.amount?.toLong()?.toString() ?: "") }
+    var amountText by remember {
+        mutableStateOf(
+            if (expense != null && expense.amount > 0) CurrencyFormatter.formatThousand(expense.amount.toLong()) else ""
+        )
+    }
     var notes by remember { mutableStateOf(expense?.notes ?: "") }
 
     val defaultCategories = listOf("Operasional", "Listrik & Air", "Sewa & Tempat", "Plastik & Kresek", "Gaji Karyawan", "Lain-lain")
@@ -595,8 +604,9 @@ private fun AddEditExpenseDialog(
 
                 OutlinedTextField(
                     value = amountText,
-                    onValueChange = { amountText = it.filter { ch -> ch.isDigit() } },
+                    onValueChange = { amountText = CurrencyFormatter.formatInputNominal(it, amountText) },
                     label = { Text("Jumlah Nominal (Rp)") },
+                    placeholder = { Text("Contoh: 50.000") },
                     prefix = { Text("Rp ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().testTag("expense_amount_input"),
@@ -626,7 +636,7 @@ private fun AddEditExpenseDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val amount = amountText.toDoubleOrNull() ?: 0.0
+                            val amount = CurrencyFormatter.parseAmount(amountText)
                             onSave(title, category, amount, notes)
                         },
                         enabled = title.isNotBlank() && amountText.isNotBlank(),

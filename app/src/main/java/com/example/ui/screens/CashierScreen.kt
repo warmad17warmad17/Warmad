@@ -68,6 +68,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -94,6 +96,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.model.ProductEntity
 import com.example.ui.components.BarcodeScannerDialog
+import com.example.ui.components.NoKeyboardScannerInputField
 import com.example.ui.components.ReceiptDialog
 import com.example.ui.viewmodel.CartItem
 import com.example.ui.viewmodel.TokoViewModel
@@ -126,6 +129,11 @@ fun CashierScreen(
     var productSearchQuery by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        keyboardController?.hide()
+    }
 
     Column(
         modifier = modifier
@@ -228,41 +236,12 @@ fun CashierScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    NoKeyboardScannerInputField(
                         value = qrInputText,
                         onValueChange = { viewModel.updateQrInputText(it) },
-                        placeholder = { Text("Scan / Ketik Kode QR Produk...") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.QrCodeScanner,
-                                contentDescription = "Scan QR",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingIcon = {
-                            if (qrInputText.isNotBlank()) {
-                                IconButton(onClick = { viewModel.updateQrInputText("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Hapus")
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("qr_scanner_input_field"),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                viewModel.submitQrInputManual()
-                            }
-                        )
+                        onDone = { viewModel.submitQrInputManual() },
+                        onClear = { viewModel.updateQrInputText("") },
+                        modifier = Modifier.weight(1f)
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -277,7 +256,7 @@ fun CashierScreen(
                     ) {
                         Icon(
                             Icons.Default.QrCode,
-                            contentDescription = "Pilih Kode QR",
+                            contentDescription = "Scan / Input Kode QR",
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
@@ -631,7 +610,10 @@ fun CashierScreen(
             onCodeScanned = { code ->
                 viewModel.checkAndAutoAddQr(code)
             },
-            onDismiss = { showScannerDialog = false }
+            onDismiss = {
+                showScannerDialog = false
+                keyboardController?.hide()
+            }
         )
     }
 
@@ -1107,7 +1089,7 @@ private fun CheckoutSheetContent(
                 value = paidAmountText,
                 onValueChange = onPaidAmountChange,
                 label = { Text("Nominal Uang Tunai Diterima (Rp)") },
-                placeholder = { Text("Contoh: 50000") },
+                placeholder = { Text("Contoh: 50.000") },
                 prefix = { Text("Rp ") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(

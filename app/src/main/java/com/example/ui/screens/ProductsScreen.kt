@@ -717,8 +717,16 @@ private fun AddEditProductDialog(
         )
     }
     var qrCode by remember { mutableStateOf(product?.qrCode ?: "") }
-    var hargaBeliStr by remember { mutableStateOf(product?.hargaBeli?.toLong()?.toString() ?: "") }
-    var hargaJualStr by remember { mutableStateOf(product?.hargaJual?.toLong()?.toString() ?: "") }
+    var hargaBeliStr by remember {
+        mutableStateOf(
+            if (product != null && product.hargaBeli > 0) CurrencyFormatter.formatThousand(product.hargaBeli.toLong()) else ""
+        )
+    }
+    var hargaJualStr by remember {
+        mutableStateOf(
+            if (product != null && product.hargaJual > 0) CurrencyFormatter.formatThousand(product.hargaJual.toLong()) else ""
+        )
+    }
     var stokStr by remember { mutableStateOf(product?.stok?.toString() ?: "10") }
     var minStokAlertStr by remember { mutableStateOf(product?.minimumStokAlert?.toString() ?: "5") }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
@@ -806,12 +814,14 @@ private fun AddEditProductDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Prices: Harga Beli & Harga Jual
+                // Prices: Harga Beli & Harga Jual (Format Otomatis Titik Pemisah Ribuan)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = hargaBeliStr,
-                        onValueChange = { hargaBeliStr = it.filter { ch -> ch.isDigit() } },
+                        onValueChange = { hargaBeliStr = CurrencyFormatter.formatInputNominal(it, hargaBeliStr) },
                         label = { Text("Harga Beli (Rp)") },
+                        placeholder = { Text("Contoh: 10.000") },
+                        prefix = { Text("Rp ") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("product_harga_beli_input"),
                         singleLine = true
@@ -819,12 +829,39 @@ private fun AddEditProductDialog(
 
                     OutlinedTextField(
                         value = hargaJualStr,
-                        onValueChange = { hargaJualStr = it.filter { ch -> ch.isDigit() } },
+                        onValueChange = { hargaJualStr = CurrencyFormatter.formatInputNominal(it, hargaJualStr) },
                         label = { Text("Harga Jual (Rp)") },
+                        placeholder = { Text("Contoh: 12.500") },
+                        prefix = { Text("Rp ") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("product_harga_jual_input"),
                         singleLine = true
                     )
+                }
+
+                // Live Margin Preview
+                val currentBeli = CurrencyFormatter.parseAmount(hargaBeliStr)
+                val currentJual = CurrencyFormatter.parseAmount(hargaJualStr)
+                if (currentJual > 0) {
+                    val margin = currentJual - currentBeli
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, start = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (margin >= 0) "Estimasi Laba: " else "Estimasi Rugi: ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = CurrencyFormatter.formatRupiah(margin),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (margin >= 0) Color(0xFF16A34A) else MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -864,8 +901,8 @@ private fun AddEditProductDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val beli = hargaBeliStr.toDoubleOrNull() ?: 0.0
-                            val jual = hargaJualStr.toDoubleOrNull() ?: 0.0
+                            val beli = CurrencyFormatter.parseAmount(hargaBeliStr)
+                            val jual = CurrencyFormatter.parseAmount(hargaJualStr)
                             val stok = stokStr.toIntOrNull() ?: 0
                             val minAlert = minStokAlertStr.toIntOrNull() ?: 5
                             val catId = selectedCategory?.id ?: 0L
