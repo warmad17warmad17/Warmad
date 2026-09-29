@@ -122,10 +122,6 @@ fun CashierScreen(
 
     var showScannerDialog by remember { mutableStateOf(false) }
     var showCheckoutSheet by remember { mutableStateOf(false) }
-    var showEditStoreDialog by remember { mutableStateOf(false) }
-    var editStoreNameInput by remember(storeSettings.storeName) { mutableStateOf(storeSettings.storeName) }
-    var editStoreAddressInput by remember(storeSettings.storeAddress) { mutableStateOf(storeSettings.storeAddress) }
-    var editStorePhoneInput by remember(storeSettings.storePhone) { mutableStateOf(storeSettings.storePhone) }
     var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
     var productSearchQuery by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -156,15 +152,7 @@ fun CashierScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .weight(1f, fill = false)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                editStoreNameInput = storeSettings.storeName
-                                editStoreAddressInput = storeSettings.storeAddress
-                                editStorePhoneInput = storeSettings.storePhone
-                                showEditStoreDialog = true
-                            }
                             .padding(vertical = 2.dp, horizontal = 4.dp)
-                            .testTag("store_header_clickable")
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.img_toko_subur_logo_1790711721794),
@@ -178,42 +166,13 @@ fun CashierScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = storeSettings.storeName,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.testTag("cashier_store_name_text")
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.testTag("quick_edit_store_chip")
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Edit,
-                                            contentDescription = "Ubah Nama Toko",
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = "Ubah Nama",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = storeSettings.storeName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.testTag("cashier_store_name_text")
+                            )
                             Text(
                                 text = storeSettings.storeAddress,
                                 style = MaterialTheme.typography.bodySmall,
@@ -683,89 +642,6 @@ fun CashierScreen(
             transaction = receiptTx!!,
             items = receiptItems,
             onDismiss = { viewModel.dismissReceiptDialog() }
-        )
-    }
-
-    // Quick Store Name & Identity Edit Dialog
-    if (showEditStoreDialog) {
-        AlertDialog(
-            onDismissRequest = { showEditStoreDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Storefront,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "Ubah Tampilan Nama Toko",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Kustomisasi nama toko yang tampil pada layar kasir dan struk transaksi.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = editStoreNameInput,
-                        onValueChange = { editStoreNameInput = it },
-                        label = { Text("Nama Toko") },
-                        placeholder = { Text("Contoh: TOKO SUBUR") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("dialog_store_name_input")
-                    )
-
-                    OutlinedTextField(
-                        value = editStoreAddressInput,
-                        onValueChange = { editStoreAddressInput = it },
-                        label = { Text("Alamat Toko (Opsional)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = editStorePhoneInput,
-                        onValueChange = { editStorePhoneInput = it },
-                        label = { Text("Nomor Telepon / Kontak (Opsional)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val cleanName = editStoreNameInput.trim().ifBlank { "TOKO SUBUR" }
-                        viewModel.updateReceiptSettings(
-                            storeName = cleanName,
-                            storeAddress = editStoreAddressInput.trim(),
-                            storePhone = editStorePhoneInput.trim(),
-                            receiptFooter = storeSettings.receiptFooter
-                        )
-                        showEditStoreDialog = false
-                    },
-                    modifier = Modifier.testTag("dialog_save_store_name_btn")
-                ) {
-                    Text("Simpan Nama")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditStoreDialog = false }) {
-                    Text("Batal")
-                }
-            }
         )
     }
 }

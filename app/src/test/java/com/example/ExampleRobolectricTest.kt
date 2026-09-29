@@ -63,4 +63,47 @@ class ExampleRobolectricTest {
     assertTrue(success)
     assertTrue(com.example.util.NoMediaHelper.isNoMediaProtectionActive(context))
   }
+
+  @Test
+  fun `test generateReceiptJpegFile creates jpeg image`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val settings = com.example.data.model.StoreSettingsEntity(
+        id = 1,
+        storeName = "TOKO SUBUR",
+        storeAddress = "Jl. Kembang Kuning No.17",
+        storePhone = "081234567890",
+        receiptFooter = "Terima kasih!",
+        initialCashCapital = 500000.0,
+        quickNominals = "10,20,50,100"
+    )
+    val tx = com.example.data.model.TransactionEntity(
+        id = 1,
+        invoiceNumber = "TRX-12345",
+        timestamp = System.currentTimeMillis(),
+        totalAmount = 50000.0,
+        totalCost = 35000.0,
+        paymentType = "TUNAI",
+        paidAmount = 50000.0,
+        changeAmount = 0.0,
+        notes = ""
+    )
+    val items = listOf(
+        com.example.data.model.TransactionItemEntity(
+            id = 1,
+            transactionId = 1,
+            productId = 1,
+            productName = "Beras Rojolele 5kg",
+            qrCode = "BRS001",
+            quantity = 1,
+            unitPrice = 50000.0,
+            unitCost = 35000.0,
+            subtotal = 50000.0
+        )
+    )
+
+    val jpegFile = com.example.util.PrintHelper.generateReceiptJpegFile(context, settings, tx, items)
+    assertTrue(jpegFile.exists())
+    assertTrue(jpegFile.name.endsWith(".jpeg"))
+    assertTrue(jpegFile.length() > 0)
+  }
 }

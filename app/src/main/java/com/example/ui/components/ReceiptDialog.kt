@@ -283,7 +283,7 @@ fun ReceiptDialog(
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Bagikan")
+                        Text("Bagikan (.jpeg)")
                     }
                 }
 
