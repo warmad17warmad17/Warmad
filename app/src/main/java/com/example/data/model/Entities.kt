@@ -67,10 +67,10 @@ data class ExpenseEntity(
 data class StoreSettingsEntity(
     @PrimaryKey
     val id: Int = 1,
-    val storeName: String = "TOKO MAKMUR",
+    val storeName: String = "TOKO SUBUR",
     val storeAddress: String = "Jl. Kembang Kuning No.17, Surabaya",
     val storePhone: String = "0812-3456-7890",
-    val receiptFooter: String = "Terima kasih telah berbelanja di Toko Makmur!\nBarang yang sudah dibeli tidak dapat ditukar.",
+    val receiptFooter: String = "Terima kasih telah berbelanja di TOKO SUBUR!\nBarang yang sudah dibeli tidak dapat ditukar.",
     val initialCashCapital: Double = 500000.0, // Modal Kas Toko awal
     val quickNominals: String = "10,20,30,50,100"
 )

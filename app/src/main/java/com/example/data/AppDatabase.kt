@@ -80,10 +80,10 @@ abstract class AppDatabase : RoomDatabase() {
                 settingsDao.insertOrUpdateSettings(
                     StoreSettingsEntity(
                         id = 1,
-                        storeName = "TOKO MAKMUR",
+                        storeName = "TOKO SUBUR",
                         storeAddress = "Jl. Kembang Kuning No.17, Surabaya",
                         storePhone = "0812-3456-7890",
-                        receiptFooter = "Terima kasih telah berbelanja di Toko Makmur!\nBarang yang sudah dibeli tidak dapat ditukar.",
+                        receiptFooter = "Terima kasih telah berbelanja di TOKO SUBUR!\nBarang yang sudah dibeli tidak dapat ditukar.",
                         initialCashCapital = 1000000.0
                     )
                 )

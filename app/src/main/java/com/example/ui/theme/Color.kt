@@ -2,7 +2,7 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Toko Makmur Palette - Clean, Bright, Crisp Light Theme
+// TOKO SUBUR Palette - Clean, Bright, Crisp Light Theme
 val MakmurBluePrimary = Color(0xFF1E5BB0)
 val MakmurBlueOnPrimary = Color(0xFFFFFFFF)
 val MakmurBlueContainer = Color(0xFFDCE8FD)

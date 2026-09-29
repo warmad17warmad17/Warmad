@@ -79,6 +79,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Sembunyikan gambar aplikasi dari Galeri HP (tempatkan .nomedia di direktori aplikasi)
+        com.example.util.NoMediaHelper.hideAppImagesFromGallery(this)
+
         setContent {
             MyApplicationTheme {
                 val snackbarHostState = remember { SnackbarHostState() }

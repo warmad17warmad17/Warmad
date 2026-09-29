@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/ic_launcher_icon_1790601125869"
+        android:drawable="@drawable/img_toko_subur_logo_1790711721794"
         android:gravity="center" />
 </layer-list>

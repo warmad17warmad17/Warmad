@@ -17,7 +17,7 @@ class ExampleRobolectricTest {
   fun `read string from context`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val appName = context.getString(R.string.app_name)
-    assertEquals("Toko Makmur", appName)
+    assertEquals("TOKO SUBUR", appName)
   }
 
   @Test
@@ -45,5 +45,22 @@ class ExampleRobolectricTest {
     org.junit.Assert.assertNotNull(viewModel)
     org.junit.Assert.assertNotNull(viewModel.allProducts)
     org.junit.Assert.assertNotNull(viewModel.notificationPrefs)
+  }
+
+  @Test
+  fun `test updateStoreName and receipt settings`() {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.viewmodel.TokoViewModel(application)
+    viewModel.updateStoreName("TOKO SUBUR")
+    viewModel.updateReceiptSettings("TOKO MAKMUR", "Jl. Baru", "0812345", "Terima kasih")
+    org.junit.Assert.assertNotNull(viewModel.storeSettings)
+  }
+
+  @Test
+  fun `test NoMediaHelper creates nomedia files`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val success = com.example.util.NoMediaHelper.hideAppImagesFromGallery(context)
+    assertTrue(success)
+    assertTrue(com.example.util.NoMediaHelper.isNoMediaProtectionActive(context))
   }
 }

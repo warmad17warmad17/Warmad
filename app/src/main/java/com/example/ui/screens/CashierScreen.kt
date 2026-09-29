@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.QrCode
@@ -42,6 +44,8 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -74,7 +78,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +91,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.R
 import com.example.data.model.ProductEntity
 import com.example.ui.components.BarcodeScannerDialog
 import com.example.ui.components.ReceiptDialog
@@ -115,6 +122,10 @@ fun CashierScreen(
 
     var showScannerDialog by remember { mutableStateOf(false) }
     var showCheckoutSheet by remember { mutableStateOf(false) }
+    var showEditStoreDialog by remember { mutableStateOf(false) }
+    var editStoreNameInput by remember(storeSettings.storeName) { mutableStateOf(storeSettings.storeName) }
+    var editStoreAddressInput by remember(storeSettings.storeAddress) { mutableStateOf(storeSettings.storeAddress) }
+    var editStorePhoneInput by remember(storeSettings.storePhone) { mutableStateOf(storeSettings.storePhone) }
     var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
     var productSearchQuery by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -141,18 +152,74 @@ fun CashierScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = storeSettings.storeName,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                editStoreNameInput = storeSettings.storeName
+                                editStoreAddressInput = storeSettings.storeAddress
+                                editStorePhoneInput = storeSettings.storePhone
+                                showEditStoreDialog = true
+                            }
+                            .padding(vertical = 2.dp, horizontal = 4.dp)
+                            .testTag("store_header_clickable")
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_toko_subur_logo_1790711721794),
+                            contentDescription = "Logo Toko Subur",
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape)
+                                .testTag("cashier_store_logo"),
+                            contentScale = ContentScale.Crop
                         )
-                        Text(
-                            text = storeSettings.storeAddress,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = storeSettings.storeName,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.testTag("cashier_store_name_text")
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.testTag("quick_edit_store_chip")
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Ubah Nama Toko",
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "Ubah Nama",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = storeSettings.storeAddress,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     // Cart item badge
@@ -616,6 +683,89 @@ fun CashierScreen(
             transaction = receiptTx!!,
             items = receiptItems,
             onDismiss = { viewModel.dismissReceiptDialog() }
+        )
+    }
+
+    // Quick Store Name & Identity Edit Dialog
+    if (showEditStoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditStoreDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Storefront,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Ubah Tampilan Nama Toko",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Kustomisasi nama toko yang tampil pada layar kasir dan struk transaksi.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = editStoreNameInput,
+                        onValueChange = { editStoreNameInput = it },
+                        label = { Text("Nama Toko") },
+                        placeholder = { Text("Contoh: TOKO SUBUR") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("dialog_store_name_input")
+                    )
+
+                    OutlinedTextField(
+                        value = editStoreAddressInput,
+                        onValueChange = { editStoreAddressInput = it },
+                        label = { Text("Alamat Toko (Opsional)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = editStorePhoneInput,
+                        onValueChange = { editStorePhoneInput = it },
+                        label = { Text("Nomor Telepon / Kontak (Opsional)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleanName = editStoreNameInput.trim().ifBlank { "TOKO SUBUR" }
+                        viewModel.updateReceiptSettings(
+                            storeName = cleanName,
+                            storeAddress = editStoreAddressInput.trim(),
+                            storePhone = editStorePhoneInput.trim(),
+                            receiptFooter = storeSettings.receiptFooter
+                        )
+                        showEditStoreDialog = false
+                    },
+                    modifier = Modifier.testTag("dialog_save_store_name_btn")
+                ) {
+                    Text("Simpan Nama")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditStoreDialog = false }) {
+                    Text("Batal")
+                }
+            }
         )
     }
 }

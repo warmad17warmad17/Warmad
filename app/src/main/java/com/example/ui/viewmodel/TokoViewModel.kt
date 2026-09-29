@@ -94,6 +94,11 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             val sounds = NotificationHelper.getDeviceNotificationSounds(application)
             _availableNotificationSounds.value = sounds
         }
+
+        // Sembunyikan gambar dan file media aplikasi dari Galeri ponsel
+        viewModelScope.launch(Dispatchers.IO) {
+            com.example.util.NoMediaHelper.hideAppImagesFromGallery(application)
+        }
     }
 
     // Settings
@@ -601,6 +606,16 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     // -------------------------------------------------------------
     // STORE & RECEIPT SETTINGS
     // -------------------------------------------------------------
+    fun updateStoreName(newName: String) {
+        val trimmed = newName.trim().ifBlank { "TOKO SUBUR" }
+        viewModelScope.launch {
+            val current = storeSettings.value
+            val updated = current.copy(storeName = trimmed)
+            repository.updateStoreSettings(updated)
+            emitMessage("Nama toko berhasil diubah menjadi: $trimmed")
+        }
+    }
+
     fun updateReceiptSettings(
         storeName: String,
         storeAddress: String,
@@ -609,14 +624,26 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             val current = storeSettings.value
+            val cleanName = storeName.trim().ifBlank { "TOKO SUBUR" }
             val updated = current.copy(
-                storeName = storeName.trim(),
+                storeName = cleanName,
                 storeAddress = storeAddress.trim(),
                 storePhone = storePhone.trim(),
                 receiptFooter = receiptFooter.trim()
             )
             repository.updateStoreSettings(updated)
-            emitMessage("Pengaturan struk pembayaran berhasil disimpan!")
+            emitMessage("Nama toko dan pengaturan struk berhasil disimpan!")
+        }
+    }
+
+    fun enforceHideImagesFromGallery() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = com.example.util.NoMediaHelper.hideAppImagesFromGallery(getApplication())
+            if (success) {
+                emitMessage("Gambar aplikasi berhasil disembunyikan dari galeri ponsel!")
+            } else {
+                emitMessage("Perlindungan .nomedia telah diperbarui di folder penyimpanan.")
+            }
         }
     }
 
@@ -685,6 +712,27 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
                 emitMessage("✓ Berhasil mencadangkan data ke file JSON!")
             } catch (e: Exception) {
                 emitMessage("Gagal mencadangkan data: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun exportAppApkToUri(context: Context, destinationUri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sourceApkPath = context.applicationInfo.sourceDir
+                val sourceFile = java.io.File(sourceApkPath)
+                if (sourceFile.exists()) {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { output ->
+                        sourceFile.inputStream().use { input ->
+                            input.copyTo(output)
+                        }
+                    }
+                    emitMessage("✓ Berkas TokoSubur.apk berhasil disimpan ke penyimpanan ponsel!")
+                } else {
+                    emitMessage("Gagal menemukan berkas APK aplikasi di sistem.")
+                }
+            } catch (e: Exception) {
+                emitMessage("Gagal mengekspor APK: ${e.localizedMessage}")
             }
         }
     }

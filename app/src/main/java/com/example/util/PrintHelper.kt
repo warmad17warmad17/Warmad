@@ -31,7 +31,7 @@ object PrintHelper {
         sb.append(doubleLine).append("\n")
         sb.append("No. Struk : ").append(transaction.invoiceNumber).append("\n")
         sb.append("Waktu     : ").append(DateFormatter.formatReceiptDateTime(transaction.timestamp)).append("\n")
-        sb.append("Kasir     : Toko Makmur\n")
+        sb.append("Kasir     : ").append(settings.storeName).append("\n")
         sb.append(line).append("\n")
 
         for (item in items) {

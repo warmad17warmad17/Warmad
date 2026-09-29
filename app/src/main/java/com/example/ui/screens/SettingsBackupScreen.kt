@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -23,15 +24,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Money
@@ -40,9 +45,12 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -69,8 +77,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -79,6 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.R
 import com.example.ui.components.NotificationSoundPickerDialog
 import com.example.ui.viewmodel.TokoViewModel
 import java.text.SimpleDateFormat
@@ -170,6 +181,15 @@ fun SettingsBackupScreen(
         }
     }
 
+    // Launcher for exporting APK file to user's phone storage
+    val exportApkLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/vnd.android.package-archive")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.exportAppApkToUri(context, it)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -221,7 +241,7 @@ fun SettingsBackupScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Default.Receipt,
+                                Icons.Default.Storefront,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
@@ -230,12 +250,12 @@ fun SettingsBackupScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Pengaturan Teks Struk Pembayaran",
+                                text = "Identitas & Tampilan Nama Toko",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Edit nama toko, alamat di bagian atas, dan kata penutup di bagian bawah",
+                                text = "Ubah nama toko yang tampil pada layar kasir dan struk pembayaran (misal: TOKO MAKMUR atau TOKO SUBUR)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -244,12 +264,48 @@ fun SettingsBackupScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Nama Toko (Header Struk)
+                    // Logo Aplikasi Toko Subur
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_toko_subur_logo_1790711721794),
+                            contentDescription = "Logo Aplikasi Toko Subur",
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Logo Resmi Aplikasi",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Logo TOKO SUBUR aktif sebagai ikon peluncur aplikasi dan lambang kasir.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Nama Toko (Header Struk & Layar)
                     OutlinedTextField(
                         value = storeName,
                         onValueChange = { storeName = it },
-                        label = { Text("Nama Toko (Bagian Atas Struk)") },
-                        placeholder = { Text("TOKO MAKMUR") },
+                        label = { Text("Nama Toko (Layar Kasir & Struk)") },
+                        placeholder = { Text("Contoh: TOKO SUBUR") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("setting_store_name"),
@@ -304,8 +360,10 @@ fun SettingsBackupScreen(
                     // Save Button
                     Button(
                         onClick = {
+                            val cleanName = storeName.trim().ifBlank { "TOKO SUBUR" }
+                            storeName = cleanName
                             viewModel.updateReceiptSettings(
-                                storeName = storeName,
+                                storeName = cleanName,
                                 storeAddress = storeAddress,
                                 storePhone = storePhone,
                                 receiptFooter = receiptFooter
@@ -318,7 +376,7 @@ fun SettingsBackupScreen(
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Simpan Pengaturan Struk")
+                        Text("Simpan Nama Toko & Pengaturan")
                     }
                 }
             }
@@ -336,15 +394,66 @@ fun SettingsBackupScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Preview Header Aplikasi
                     Text(
-                        text = "--- Pratinjau Tampilan Struk ---",
+                        text = "--- Pratinjau Header Tampilan Layar Kasir ---",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = storeName.ifBlank { "TOKO SUBUR" },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = storeAddress.ifBlank { "Jl. Kembang Kuning No.17, Surabaya" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "Ubah Nama",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "--- Pratinjau Tampilan Struk Kasir ---",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = storeName.ifBlank { "TOKO MAKMUR" },
+                        text = storeName.ifBlank { "TOKO SUBUR" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         fontFamily = FontFamily.Monospace,
@@ -864,7 +973,7 @@ fun SettingsBackupScreen(
                     Button(
                         onClick = {
                             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                            val suggestedName = "toko_makmur_backup_$timestamp.json"
+                            val suggestedName = "toko_subur_backup_$timestamp.json"
                             exportJsonLauncher.launch(suggestedName)
                         },
                         modifier = Modifier
@@ -920,6 +1029,160 @@ fun SettingsBackupScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+            }
+
+            // Section 4: Berkas Instalasi APK (TokoSubur.apk)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Android,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Berkas Instalasi APK (TokoSubur.apk)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Simpan langsung berkas .apk siap pasang ke penyimpanan HP",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Berkas .APK ini sudah ditandatangani resmi (signed) dan siap dipasang langsung di HP Android Anda maupun dibagikan ke ponsel kasir lainnya tanpa perlu komputer.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = {
+                            exportApkLauncher.launch("TokoSubur.apk")
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("export_apk_btn"),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simpan Berkas TokoSubur.apk ke HP", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // Section 5: Privasi Media Galeri Ponsel (.nomedia)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Privasi Gambar dari Galeri HP",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Sembunyikan seluruh gambar, logo, dan berkas aplikasi dari Galeri foto ponsel",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Status: Aktif & Terlindungi (.nomedia)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Semua direktori data dan cache aplikasi diproteksi dengan berkas .nomedia sehingga sistem galeri ponsel (Google Photos / Galeri HP) otomatis mengabaikan dan tidak menampilkan gambar aplikasi.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedButton(
+                        onClick = { viewModel.enforceHideImagesFromGallery() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("enforce_hide_gallery_btn"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Perbarui & Pastikan Perlindungan Galeri")
                     }
                 }
             }
