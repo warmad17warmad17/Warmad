@@ -34,6 +34,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -95,7 +97,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.model.ProductEntity
+import com.example.data.sync.SyncStatus
 import com.example.ui.components.BarcodeScannerDialog
+import com.example.ui.components.GoogleSyncDialog
 import com.example.ui.components.NoKeyboardScannerInputField
 import com.example.ui.components.ReceiptDialog
 import com.example.ui.viewmodel.CartItem
@@ -115,6 +119,14 @@ fun CashierScreen(
     val cart by viewModel.cart.collectAsStateWithLifecycle()
     val cartTotal by viewModel.cartTotal.collectAsStateWithLifecycle()
     val qrInputText by viewModel.qrInputText.collectAsStateWithLifecycle()
+    val qrClearTrigger by viewModel.qrClearTrigger.collectAsStateWithLifecycle()
+
+    val currentGoogleUser by viewModel.currentGoogleUser.collectAsStateWithLifecycle()
+    val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+    val lastSyncTime by viewModel.lastSyncTime.collectAsStateWithLifecycle()
+    val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
+    val isRealtimeSyncEnabled by viewModel.isRealtimeSyncEnabled.collectAsStateWithLifecycle()
+    val showGoogleSyncDialog by viewModel.showGoogleSyncDialog.collectAsStateWithLifecycle()
 
     val showReceiptDialog by viewModel.showReceiptDialog.collectAsStateWithLifecycle()
     val receiptTx by viewModel.currentReceiptTransaction.collectAsStateWithLifecycle()
@@ -189,39 +201,78 @@ fun CashierScreen(
                         }
                     }
 
-                    // Cart item badge
-                    BadgedBox(
-                        badge = {
-                            if (cart.isNotEmpty()) {
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.testTag("cart_badge")
-                                ) {
-                                    Text("${cart.sumOf { it.quantity }}")
-                                }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Google Online Sync Status Chip
+                        Surface(
+                            onClick = { viewModel.openGoogleSyncDialog() },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (currentGoogleUser != null) {
+                                Color(0xFFDCFCE7)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (currentGoogleUser != null) Color(0xFF16A34A).copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier.testTag("top_google_sync_chip")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (currentGoogleUser != null) Icons.Default.CloudDone else Icons.Default.CloudSync,
+                                    contentDescription = null,
+                                    tint = if (currentGoogleUser != null) Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (currentGoogleUser != null) "Real-Time Online" else "Login Google",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (currentGoogleUser != null) Color(0xFF166534) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                    ) {
-                        OutlinedButton(
-                            onClick = {
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Cart item badge
+                        BadgedBox(
+                            badge = {
                                 if (cart.isNotEmpty()) {
-                                    showCheckoutSheet = true
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.testTag("cart_badge")
+                                    ) {
+                                        Text("${cart.sumOf { it.quantity }}")
+                                    }
                                 }
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.testTag("top_cart_checkout_button")
+                            }
                         ) {
-                            Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = CurrencyFormatter.formatRupiah(cartTotal),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
+                            OutlinedButton(
+                                onClick = {
+                                    if (cart.isNotEmpty()) {
+                                        showCheckoutSheet = true
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("top_cart_checkout_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = CurrencyFormatter.formatRupiah(cartTotal),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -238,9 +289,10 @@ fun CashierScreen(
                 ) {
                     NoKeyboardScannerInputField(
                         value = qrInputText,
+                        clearTrigger = qrClearTrigger,
                         onValueChange = { viewModel.updateQrInputText(it) },
-                        onDone = { viewModel.submitQrInputManual() },
-                        onClear = { viewModel.updateQrInputText("") },
+                        onDone = { code -> viewModel.submitQrInputManual(code) },
+                        onClear = { viewModel.clearQrInput() },
                         modifier = Modifier.weight(1f)
                     )
 
@@ -559,7 +611,10 @@ fun CashierScreen(
                         items(selectableProducts, key = { it.id }) { product ->
                             ProductQuickCard(
                                 product = product,
-                                onAdd = { viewModel.addToCart(product) }
+                                onAdd = {
+                                    viewModel.addToCart(product)
+                                    viewModel.clearQrInput()
+                                }
                             )
                         }
                     }
@@ -609,9 +664,11 @@ fun CashierScreen(
             products = allProducts,
             onCodeScanned = { code ->
                 viewModel.checkAndAutoAddQr(code)
+                viewModel.clearQrInput()
             },
             onDismiss = {
                 showScannerDialog = false
+                viewModel.clearQrInput()
                 keyboardController?.hide()
             }
         )
@@ -624,6 +681,23 @@ fun CashierScreen(
             transaction = receiptTx!!,
             items = receiptItems,
             onDismiss = { viewModel.dismissReceiptDialog() }
+        )
+    }
+
+    // Google Account & Real-Time Sync Dialog
+    if (showGoogleSyncDialog) {
+        GoogleSyncDialog(
+            currentUser = currentGoogleUser,
+            syncStatus = syncStatus,
+            syncMessage = syncMessage,
+            lastSyncTime = lastSyncTime,
+            isRealtimeSyncEnabled = isRealtimeSyncEnabled,
+            onToggleRealtimeSync = { viewModel.setRealtimeSyncEnabled(it) },
+            onSignInGoogle = { viewModel.signInWithGoogle() },
+            onSignInManual = { email, name -> viewModel.signInWithEmailDirect(email, name) },
+            onSignOut = { viewModel.signOutGoogle() },
+            onForceSyncAll = { viewModel.syncAllLocalToCloud() },
+            onDismiss = { viewModel.dismissGoogleSyncDialog() }
         )
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,18 +44,27 @@ import androidx.compose.ui.viewinterop.AndroidView
  * An input field designed for POS barcode/QR scanners that suppresses the
  * on-screen software keyboard (IME) when touched or active, while retaining
  * full hardware keyboard and scanner input capabilities.
+ * Automatically clears scanned text once a product is successfully added.
  */
 @Composable
 fun NoKeyboardScannerInputField(
     value: String,
     onValueChange: (String) -> Unit,
-    onDone: () -> Unit,
+    onDone: (String) -> Unit,
+    clearTrigger: Long = 0L,
     modifier: Modifier = Modifier,
     placeholder: String = "Scan / Ketik Kode QR Produk...",
     onClear: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     var editTextRef by remember { mutableStateOf<EditText?>(null) }
+
+    LaunchedEffect(clearTrigger) {
+        if (clearTrigger > 0L) {
+            editTextRef?.setText("")
+            editTextRef?.requestFocus()
+        }
+    }
 
     val borderColor = if (isFocused) {
         MaterialTheme.colorScheme.primary
@@ -150,22 +160,24 @@ fun NoKeyboardScannerInputField(
                                 override fun afterTextChanged(s: Editable?) {}
                             })
 
-                            setOnEditorActionListener { _, actionId, event ->
+                            setOnEditorActionListener { v, actionId, event ->
                                 if (actionId == EditorInfo.IME_ACTION_DONE ||
                                     (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP)
                                 ) {
-                                    onDone()
+                                    val code = (v as? EditText)?.text?.toString() ?: value
+                                    onDone(code)
                                     true
                                 } else {
                                     false
                                 }
                             }
 
-                            setOnKeyListener { _, keyCode, event ->
+                            setOnKeyListener { v, keyCode, event ->
                                 if (event.action == KeyEvent.ACTION_UP &&
                                     (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)
                                 ) {
-                                    onDone()
+                                    val code = (v as? EditText)?.text?.toString() ?: value
+                                    onDone(code)
                                     true
                                 } else {
                                     false
@@ -184,7 +196,9 @@ fun NoKeyboardScannerInputField(
                         editText.showSoftInputOnFocus = false
                         editText.setTextColor(textColor)
                         editText.setHintTextColor(hintColor)
-                        if (editText.text.toString() != value) {
+                        if (value.isEmpty() && editText.text.isNotEmpty()) {
+                            editText.setText("")
+                        } else if (editText.text.toString() != value) {
                             editText.setText(value)
                             editText.setSelection(value.length)
                         }
@@ -192,9 +206,12 @@ fun NoKeyboardScannerInputField(
                 )
             }
 
-            if (value.isNotBlank()) {
+            if (value.isNotBlank() || (editTextRef?.text?.isNotEmpty() == true)) {
                 IconButton(
-                    onClick = onClear,
+                    onClick = {
+                        editTextRef?.setText("")
+                        onClear()
+                    },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(

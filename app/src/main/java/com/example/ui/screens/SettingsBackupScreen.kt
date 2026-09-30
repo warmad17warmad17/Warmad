@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,11 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
@@ -67,6 +73,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,6 +97,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
+import com.example.data.sync.SyncStatus
+import com.example.ui.components.GoogleSyncDialog
 import com.example.ui.components.NotificationSoundPickerDialog
 import com.example.ui.viewmodel.TokoViewModel
 import java.text.SimpleDateFormat
@@ -116,6 +125,13 @@ fun SettingsBackupScreen(
     val soundUri by viewModel.selectedNotificationSoundUri.collectAsStateWithLifecycle()
     val availableSounds by viewModel.availableNotificationSounds.collectAsStateWithLifecycle()
     val lowStockCount by viewModel.lowStockProductCount.collectAsStateWithLifecycle()
+
+    val currentGoogleUser by viewModel.currentGoogleUser.collectAsStateWithLifecycle()
+    val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+    val lastSyncTime by viewModel.lastSyncTime.collectAsStateWithLifecycle()
+    val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
+    val isRealtimeSyncEnabled by viewModel.isRealtimeSyncEnabled.collectAsStateWithLifecycle()
+    var showGoogleSyncDialog by remember { mutableStateOf(false) }
 
     var showSoundPickerDialog by remember { mutableStateOf(false) }
 
@@ -224,6 +240,211 @@ fun SettingsBackupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Section 0: Google Account & Online Real-Time Multi-Device Sync
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("card_google_sync_settings"),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (currentGoogleUser != null) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (currentGoogleUser != null) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(
+                                        if (currentGoogleUser != null) Color(0xFFDCFCE7) else MaterialTheme.colorScheme.primaryContainer
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (currentGoogleUser != null) Icons.Default.CloudDone else Icons.Default.CloudSync,
+                                    contentDescription = null,
+                                    tint = if (currentGoogleUser != null) Color(0xFF16A34A) else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Akun Google & Sinkronisasi Online",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (currentGoogleUser != null) "Real-time online aktif antar ponsel" else "Akses multi-ponsel belum terhubung",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (currentGoogleUser != null) Color(0xFF166534) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (currentGoogleUser != null) {
+                            TextButton(
+                                onClick = { showGoogleSyncDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("Detail", fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (currentGoogleUser == null) {
+                        Text(
+                            text = "Login dengan akun Google yang sama di beberapa ponsel agar stok barang, transaksi kasir, modal toko, dan laporan keuangan dapat diakses dan diperbarui secara real-time dari ponsel mana saja.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { showGoogleSyncDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("btn_open_google_sync_dialog"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Masuk dengan Akun Google", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        // User info card
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = currentGoogleUser!!.displayName.take(1).uppercase(),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = currentGoogleUser!!.displayName,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = currentGoogleUser!!.email,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.signOutGoogle() },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ExitToApp,
+                                        contentDescription = "Keluar Akun",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Realtime toggle & status
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Sinkronisasi Real-Time Otomatis",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = syncMessage,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isRealtimeSyncEnabled,
+                                onCheckedChange = { viewModel.setRealtimeSyncEnabled(it) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.syncAllLocalToCloud() },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .testTag("btn_sync_now_settings"),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Singkron Sekarang", fontSize = 12.sp)
+                            }
+
+                            Button(
+                                onClick = { showGoogleSyncDialog = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Status & Info", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Section 1: Edit Struk Pembayaran
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1177,5 +1398,21 @@ fun SettingsBackupScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showGoogleSyncDialog) {
+        GoogleSyncDialog(
+            currentUser = currentGoogleUser,
+            syncStatus = syncStatus,
+            syncMessage = syncMessage,
+            lastSyncTime = lastSyncTime,
+            isRealtimeSyncEnabled = isRealtimeSyncEnabled,
+            onToggleRealtimeSync = { viewModel.setRealtimeSyncEnabled(it) },
+            onSignInGoogle = { viewModel.signInWithGoogle() },
+            onSignInManual = { email, name -> viewModel.signInWithEmailDirect(email, name) },
+            onSignOut = { viewModel.signOutGoogle() },
+            onForceSyncAll = { viewModel.syncAllLocalToCloud() },
+            onDismiss = { showGoogleSyncDialog = false }
+        )
     }
 }

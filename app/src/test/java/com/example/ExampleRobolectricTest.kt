@@ -106,4 +106,21 @@ class ExampleRobolectricTest {
     assertTrue(jpegFile.name.endsWith(".jpeg"))
     assertTrue(jpegFile.length() > 0)
   }
+
+  @Test
+  fun `test GoogleAuthManager signInWithEmailDirect and signOut`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val authManager = com.example.data.sync.GoogleAuthManager(context)
+    val result = authManager.signInWithEmailDirect("spxmt95@gmail.com", "Toko Subur")
+    assertTrue(result.isSuccess)
+    val user = authManager.currentUser.value
+    org.junit.Assert.assertNotNull(user)
+    assertEquals("spxmt95@gmail.com", user?.email)
+    assertEquals("Toko Subur", user?.displayName)
+
+    kotlinx.coroutines.runBlocking {
+      authManager.signOut()
+    }
+    org.junit.Assert.assertNull(authManager.currentUser.value)
+  }
 }

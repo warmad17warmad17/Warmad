@@ -131,7 +131,9 @@ fun BarcodeScannerDialog(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (manualCodeInput.isNotBlank()) {
-                                onCodeScanned(manualCodeInput.trim())
+                                val code = manualCodeInput.trim()
+                                manualCodeInput = ""
+                                onCodeScanned(code)
                                 onDismiss()
                             }
                         }
@@ -150,7 +152,9 @@ fun BarcodeScannerDialog(
                 Button(
                     onClick = {
                         if (manualCodeInput.isNotBlank()) {
-                            onCodeScanned(manualCodeInput.trim())
+                            val code = manualCodeInput.trim()
+                            manualCodeInput = ""
+                            onCodeScanned(code)
                             onDismiss()
                         }
                     },

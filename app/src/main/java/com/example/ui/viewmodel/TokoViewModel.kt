@@ -14,6 +14,10 @@ import com.example.data.model.StoreSettingsEntity
 import com.example.data.model.TransactionEntity
 import com.example.data.model.TransactionItemEntity
 import com.example.data.repository.TokoRepository
+import com.example.data.sync.CloudSyncManager
+import com.example.data.sync.GoogleAuthManager
+import com.example.data.sync.GoogleUser
+import com.example.data.sync.SyncStatus
 import com.example.util.BackupData
 import com.example.util.BackupManager
 import com.example.util.CurrencyFormatter
@@ -60,6 +64,8 @@ enum class PeriodFilter(val label: String) {
 class TokoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: TokoRepository
+    val authManager = GoogleAuthManager(application)
+    val cloudSyncManager: CloudSyncManager
     val notificationPrefs = NotificationPreferences(application)
 
     private val _isNotificationEnabled = MutableStateFlow(notificationPrefs.isNotificationEnabled)
@@ -83,6 +89,25 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             db.expenseDao(),
             db.storeSettingsDao()
         )
+        cloudSyncManager = CloudSyncManager(
+            application,
+            db.productDao(),
+            db.categoryDao(),
+            db.transactionDao(),
+            db.expenseDao(),
+            db.storeSettingsDao()
+        )
+
+        // Observe logged-in Google user and connect real-time sync
+        viewModelScope.launch {
+            authManager.currentUser.collectLatest { user ->
+                if (user != null) {
+                    cloudSyncManager.onUserLoggedIn(user)
+                } else {
+                    cloudSyncManager.onUserLoggedOut()
+                }
+            }
+        }
 
         // Automatically sync HPP for any existing transactions on startup
         viewModelScope.launch {
@@ -146,6 +171,71 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
 
+    // ONLINE REAL-TIME SYNC & GOOGLE ACCOUNT
+    // -------------------------------------------------------------
+    val currentGoogleUser: StateFlow<GoogleUser?> = authManager.currentUser
+    val syncStatus: StateFlow<SyncStatus> = cloudSyncManager.syncStatus
+    val lastSyncTime: StateFlow<Long> = cloudSyncManager.lastSyncTime
+    val syncMessage: StateFlow<String> = cloudSyncManager.syncMessage
+    val isRealtimeSyncEnabled: StateFlow<Boolean> = cloudSyncManager.isRealtimeSyncEnabled
+
+    private val _showGoogleSyncDialog = MutableStateFlow(false)
+    val showGoogleSyncDialog: StateFlow<Boolean> = _showGoogleSyncDialog.asStateFlow()
+
+    fun openGoogleSyncDialog() {
+        _showGoogleSyncDialog.value = true
+    }
+
+    fun dismissGoogleSyncDialog() {
+        _showGoogleSyncDialog.value = false
+    }
+
+    fun setRealtimeSyncEnabled(enabled: Boolean) {
+        cloudSyncManager.setRealtimeSyncEnabled(enabled)
+        emitMessage(if (enabled) "Sinkronisasi real-time multi-ponsel diaktifkan." else "Sinkronisasi real-time dinonaktifkan.")
+    }
+
+    fun signInWithGoogle(webClientId: String = "") {
+        viewModelScope.launch {
+            val result = authManager.signInWithGoogle(webClientId)
+            if (result.isSuccess) {
+                val user = result.getOrNull()!!
+                emitMessage("✓ Berhasil masuk sebagai ${user.displayName}")
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Gagal masuk dengan akun Google"
+                emitMessage(err)
+            }
+        }
+    }
+
+    fun signInWithEmailDirect(email: String, name: String? = null) {
+        val result = authManager.signInWithEmailDirect(email, name)
+        if (result.isSuccess) {
+            val user = result.getOrNull()!!
+            emitMessage("✓ Akun ${user.email} berhasil dihubungkan ke sinkronisasi online.")
+        } else {
+            emitMessage(result.exceptionOrNull()?.message ?: "Gagal menghubungkan email.")
+        }
+    }
+
+    fun signOutGoogle() {
+        viewModelScope.launch {
+            authManager.signOut()
+            emitMessage("Akun Google telah keluar.")
+        }
+    }
+
+    fun syncAllLocalToCloud() {
+        viewModelScope.launch {
+            val result = cloudSyncManager.syncAllLocalToCloud()
+            if (result.isSuccess) {
+                emitMessage(result.getOrNull() ?: "Sinkronisasi berhasil!")
+            } else {
+                emitMessage(result.exceptionOrNull()?.message ?: "Gagal menyinkronkan data ke cloud.")
+            }
+        }
+    }
+
     // -------------------------------------------------------------
     // CASHIER & CART STATE
     // -------------------------------------------------------------
@@ -164,11 +254,22 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     private val _qrInputText = MutableStateFlow("")
     val qrInputText: StateFlow<String> = _qrInputText.asStateFlow()
 
+    private val _qrClearTrigger = MutableStateFlow(0L)
+    val qrClearTrigger: StateFlow<Long> = _qrClearTrigger.asStateFlow()
+
+    fun clearQrInput() {
+        _qrInputText.value = ""
+        _qrClearTrigger.value = System.currentTimeMillis()
+    }
+
     fun updateQrInputText(text: String) {
         _qrInputText.value = text
         // Fast instant barcode detection
         if (text.isNotBlank()) {
-            checkAndAutoAddQr(text.trim())
+            val success = checkAndAutoAddQr(text.trim())
+            if (success) {
+                clearQrInput()
+            }
         }
     }
 
@@ -184,24 +285,24 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         if (match != null) {
             if (match.stok <= 0) {
                 emitMessage("Stok '${match.name}' habis!")
-                _qrInputText.value = ""
+                clearQrInput()
                 return false
             }
             addToCart(match)
             emitMessage("✓ '${match.name}' ditambahkan")
-            _qrInputText.value = "" // Auto-clear so cashier doesn't need to manually delete
+            clearQrInput() // Auto-clear so cashier can immediately scan the next product
             return true
         }
         return false
     }
 
-    fun submitQrInputManual() {
-        val code = _qrInputText.value.trim()
+    fun submitQrInputManual(rawCode: String? = null) {
+        val code = (rawCode ?: _qrInputText.value).trim()
         if (code.isBlank()) return
         val success = checkAndAutoAddQr(code)
         if (!success) {
             emitMessage("Produk dengan kode '$code' tidak ditemukan!")
-            _qrInputText.value = ""
+            clearQrInput()
         }
     }
 
@@ -374,6 +475,13 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
 
             val txId = repository.processSale(tx, txItems)
             val savedTx = tx.copy(id = txId)
+            val savedItems = txItems.map { it.copy(transactionId = txId) }
+
+            // Push to cloud in real time for other phones
+            cloudSyncManager.pushTransaction(savedTx, savedItems)
+            for (cartItem in cartList) {
+                repository.getProductById(cartItem.product.id)?.let { cloudSyncManager.pushProduct(it) }
+            }
 
             _cart.value = emptyList()
             _paidAmountText.value = ""
@@ -381,7 +489,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
 
             // Show receipt immediately
             _currentReceiptTransaction.value = savedTx
-            _currentReceiptItems.value = txItems.map { it.copy(transactionId = txId) }
+            _currentReceiptItems.value = savedItems
             _showReceiptDialog.value = true
 
             // Periksa stok terbaru setelah transaksi berhasil dikurangi
@@ -480,7 +588,8 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
                 stok = stok,
                 minimumStokAlert = minimumStokAlert
             )
-            repository.addProduct(product)
+            val newId = repository.addProduct(product)
+            cloudSyncManager.pushProduct(product.copy(id = newId))
             emitMessage("Produk '${product.name}' berhasil ditambahkan")
             checkAndNotifyLowStock(force = true)
         }
@@ -489,6 +598,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     fun updateProduct(product: ProductEntity) {
         viewModelScope.launch {
             repository.updateProduct(product)
+            cloudSyncManager.pushProduct(product)
             emitMessage("Produk '${product.name}' berhasil diperbarui")
             checkAndNotifyLowStock(force = true)
         }
@@ -497,6 +607,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteProduct(product: ProductEntity) {
         viewModelScope.launch {
             repository.deleteProduct(product)
+            cloudSyncManager.pushDeleteProduct(product.id)
             emitMessage("Produk '${product.name}' dihapus")
         }
     }
@@ -504,7 +615,8 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     fun addCategory(name: String) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            repository.addCategory(name.trim())
+            val newId = repository.addCategory(name.trim())
+            cloudSyncManager.pushCategory(CategoryEntity(id = newId, name = name.trim()))
             emitMessage("Katalog '$name' berhasil ditambahkan")
         }
     }
@@ -513,6 +625,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = repository.deleteCategory(category)
             if (result.isSuccess) {
+                cloudSyncManager.pushDeleteCategory(category.id)
                 emitMessage("Katalog '${category.name}' berhasil dihapus")
             } else {
                 emitMessage(result.exceptionOrNull()?.message ?: "Gagal menghapus katalog")
@@ -532,7 +645,8 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
                 timestamp = System.currentTimeMillis(),
                 notes = notes.trim()
             )
-            repository.addExpense(exp)
+            val newId = repository.addExpense(exp)
+            cloudSyncManager.pushExpense(exp.copy(id = newId))
             emitMessage("Pengeluaran sebesar ${CurrencyFormatter.formatRupiah(amount)} disimpan")
         }
     }
@@ -540,6 +654,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     fun updateExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
             repository.updateExpense(expense)
+            cloudSyncManager.pushExpense(expense)
             emitMessage("Pengeluaran diperbarui")
         }
     }
@@ -547,6 +662,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
             repository.deleteExpense(expense)
+            cloudSyncManager.pushDeleteExpense(expense.id)
             emitMessage("Pengeluaran dihapus")
         }
     }
@@ -556,6 +672,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
             val current = storeSettings.value
             val updated = current.copy(initialCashCapital = amount)
             repository.updateStoreSettings(updated)
+            cloudSyncManager.pushSettings(updated)
             emitMessage("Modal kas awal toko diperbarui: ${CurrencyFormatter.formatRupiah(amount)}")
         }
     }
@@ -636,6 +753,7 @@ class TokoViewModel(application: Application) : AndroidViewModel(application) {
                 receiptFooter = receiptFooter.trim()
             )
             repository.updateStoreSettings(updated)
+            cloudSyncManager.pushSettings(updated)
             emitMessage("Nama toko dan pengaturan struk berhasil disimpan!")
         }
     }
